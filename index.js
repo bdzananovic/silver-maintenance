@@ -32,7 +32,10 @@ app.use(passport.session());
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: "/auth/google/callback"
+
+  // ✅ FIXED: Use full HTTPS URL for Railway deployment
+  callbackURL: "https://silver-maintenance-production.up.railway.app/auth/google/callback"
+
 }, (accessToken, refreshToken, profile, done) => {
   if (profile._json.hd !== "silvertruckingllc.com") {
     return done(null, false, { message: "Not a company email" });
