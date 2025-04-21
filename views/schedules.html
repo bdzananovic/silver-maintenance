@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="icon" href="/images/favicon.ico" type="image/x-icon" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Maintenance Schedules – Silver Maintenance</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #c0c0c0;
+      color: #333;
+    }
+    header {
+      background-color: #003366;
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem 1.5rem;
+    }
+    header img {
+      height: 40px;
+    }
+    nav a {
+      color: white;
+      text-decoration: none;
+      margin-left: 1rem;
+      font-weight: 500;
+    }
+    nav a:hover {
+      text-decoration: underline;
+    }
+    main {
+      max-width: 1000px;
+      margin: 2rem auto;
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    h2 {
+      margin-top: 0;
+      color: #003366;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1.5rem;
+    }
+    th, td {
+      padding: 0.75rem;
+      border-bottom: 1px solid #ccc;
+      text-align: left;
+    }
+    th {
+      background-color: #f4f4f4;
+    }
+    .profile-section {
+      margin-top: 2rem;
+    }
+    select {
+      padding: 0.5rem;
+      font-size: 1rem;
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="/images/logo.png" alt="Silver Logo" />
+    <nav>
+      <a href="/dashboard.html">Dashboard</a>
+      <a href="/units.html">Units</a>
+      <a href="/schedules.html">Schedules</a>
+      <a href="/logout">Logout</a>
+    </nav>
+  </header>
+  
+  <main>
+    <h2>View Maintenance Schedule</h2>
+    <label for="profileSelect">Select a schedule:</label>
+    <select id="profileSelect">
+      <option value="standard">Standard Truck PM</option>
+      <option value="trailer">Trailer Basic PM (coming soon)</option>
+    </select>
+
+    <table id="scheduleTable">
+      <thead>
+        <tr>
+          <th>Service Item</th>
+          <th>Interval (miles)</th>
+        </tr>
+      </thead>
+      <tbody id="scheduleBody"></tbody>
+    </table>
+
+    <div class="profile-section">
+      <h3>Assigned Makes Using This Schedule</h3>
+      <p>All truck makes currently default to <strong>Standard Truck PM</strong>. You’ll be able to assign schedules per make here in the future.</p>
+      <ul>
+        <li>Freightliner</li>
+        <li>Volvo</li>
+        <li>Kenworth</li>
+        <li>Peterbilt</li>
+        <li>International</li>
+        <li>Mack</li>
+      </ul>
+    </div>
+  </main>
+  <script>
+    const profiles = {
+      standard: [
+        ['Oil Change', 40000],
+        ['Engine Air Filter', 80000],
+        ['Fuel Tank Breather Filter', 20000],
+        ['Coolant', 300000],
+        ['Coolant Filter', 40000],
+        ['Valve Adjustment', 250000],
+        ['Fan and Accessory Drive Belt', 250000],
+        ['Clean DPF Filters', 400000],
+        ['Replace DPF Ignition Electrode and Nozzle', 150000],
+        ['Replace AHI Nozzle', 150000],
+        ['DEF, Pump, and Tank Filler Neck Filter', 150000],
+        ['Transmission Oil and Filter', 500000],
+        ['Rear Axle Oil', 500000],
+        ['Power Steering Fluid and Filter', 150000],
+        ['Air Dryer Cartridge', 150000],
+      ],
+      trailer: [
+        ['Brake Inspection', 20000],
+        ['Wheel Seal Check', 60000],
+        ['Tire Tread Depth Check', 15000],
+        ['Lighting System Check', 10000],
+      ]
+    };
+
+    function renderSchedule(profileKey) {
+      const tbody = document.getElementById('scheduleBody');
+      tbody.innerHTML = '';
+      profiles[profileKey].forEach(([item, interval]) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td>${item}</td><td>${interval.toLocaleString()}</td>`;
+        tbody.appendChild(row);
+      });
+    }
+
+    document.getElementById('profileSelect').addEventListener('change', (e) => {
+      renderSchedule(e.target.value);
+    });
+
+    renderSchedule('standard');
+  </script>
+  <div id="logout-warning" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #fff3cd; border: 1px solid #ffeeba; padding: 2rem 2rem; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); z-index: 9999; display: flex; align-items: center;">
+    <img src="/images/logout-icon.png" alt="Logout Warning" style="width: 60px; margin-right: 1.5rem;" />
+    <div>
+      <strong style="font-size: 1.2rem;">You're about to be logged out due to inactivity.</strong><br>
+      <span id="logout-timer" style="font-size: 1.5rem; font-weight: bold;">05:00</span> remaining...
+    </div>
+  </div>
+  
+  <script>
+    const INACTIVITY_LIMIT_MINUTES = 60;
+    const WARNING_DURATION_SECONDS = 300; // 5 minutes
+  
+    let warningShown = false;
+    let logoutTimeout;
+    let countdownInterval;
+  
+    function resetTimers() {
+      clearTimeout(logoutTimeout);
+      clearInterval(countdownInterval);
+      document.getElementById("logout-warning").style.display = "none";
+      warningShown = false;
+  
+      logoutTimeout = setTimeout(showWarning, INACTIVITY_LIMIT_MINUTES * 60 * 1000);
+    }
+  
+    function showWarning() {
+      warningShown = true;
+      const warningBox = document.getElementById("logout-warning");
+      warningBox.style.display = "flex";
+  
+      let remaining = WARNING_DURATION_SECONDS;
+      const timerText = document.getElementById("logout-timer");
+  
+      countdownInterval = setInterval(() => {
+        remaining--;
+        const minutes = String(Math.floor(remaining / 60)).padStart(2, "0");
+        const seconds = String(remaining % 60).padStart(2, "0");
+        timerText.textContent = `${minutes}:${seconds}`;
+        if (remaining <= 0) {
+          clearInterval(countdownInterval);
+          window.location.href = "/logout";
+        }
+      }, 1000);
+    }
+  
+    ['click', 'mousemove', 'keypress', 'scroll'].forEach(evt =>
+      document.addEventListener(evt, resetTimers)
+    );
+  
+    resetTimers();
+  </script>
+  
+</body>
+</html>

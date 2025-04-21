@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="icon" href="/images/favicon.ico" type="image/x-icon" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Unit List – Silver Maintenance</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #e5eaee;
+    }
+    header {
+      background-color: #003366;
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem 1.5rem;
+    }
+    header img {
+      height: 40px;
+    }
+    nav a {
+      color: white;
+      text-decoration: none;
+      margin-left: 1rem;
+      font-weight: 500;
+    }
+    .container {
+      position: relative;
+      max-width: 1100px;
+      margin: 2rem auto;
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+    }
+    h2 {
+      color: #003366;
+    }
+    .controls {
+      display: flex;
+      gap: 1rem;
+      margin: 1rem 0 2rem;
+      flex-wrap: wrap;
+    }
+    input[type="text"] {
+      flex-grow: 0.5;
+      min-width: 150px;
+    }
+    input, select {
+      padding: 0.5rem;
+      font-size: 1rem;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+    #dropzone {
+      padding: 1rem;
+      border: 2px dashed #ccc;
+      border-radius: 8px;
+      text-align: center;
+      background: #f9f9f9;
+      cursor: pointer;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 0.75rem;
+      border-bottom: 1px solid #ddd;
+    }
+    th {
+      background-color: #f3f3f3;
+    }
+    table thead th {
+      position: sticky;
+      top: 0;
+      background-color: #f3f3f3;
+      z-index: 1;
+    }
+    .unit-switch {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .unit-switch button {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 6px;
+      background-color: #ccc;
+      color: #003366;
+      cursor: pointer;
+    }
+    .unit-switch button.active {
+      background-color: #003366;
+      color: white;
+    }
+    .status-dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .dot-green { background-color: green; }
+    .dot-yellow { background-color: gold; }
+    .dot-red { background-color: red; }
+    #dotSummary {
+      position: absolute;
+      top: 2rem;
+      right: 2rem;
+      display: flex;
+      gap: 10px;
+    }
+    #dotSummary div {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-weight: bold;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+</head>
+<body>
+  <header>
+    <img src="/images/logo.png" alt="Silver Logo" />
+    <nav>
+      <a href="/dashboard.html">Dashboard</a>
+      <a href="/units.html">Units</a>
+      <a href="/schedules.html">Schedules</a>
+      <a href="/logout">Logout</a>
+    </nav>
+  </header>
+
+  <div class="container">
+    <h2 id="title">Unit List</h2>
+
+    <div id="dotSummary">
+      <div><span class="status-dot dot-red"></span> <span id="redCount">0</span></div>
+      <div><span class="status-dot dot-yellow"></span> <span id="yellowCount">0</span></div>
+      <div><span class="status-dot dot-green"></span> <span id="greenCount">0</span></div>
+    </div>
+
+    <div class="unit-switch">
+      <button id="truckBtn" class="active">Trucks</button>
+      <button id="trailerBtn">Trailers</button>
+    </div>
+    <p id="unitCounts" style="margin: 0 0 1.5rem; font-weight: bold; color: #003366;">Active: 0 | Inactive: 0</p>
+
+    <div class="controls">
+      <input type="text" id="search" placeholder="Search TruckId, VIN, Company...">
+      <select id="statusFilter">
+        <option value="active" selected>Active</option>
+        <option value="inactive">Inactive</option>
+        <option value="all">All</option>
+      </select>
+    </div>
+
+    <div id="dropzone">📂 Drag and drop CSV file here or click to upload
+      <input type="file" id="csvUpload" accept=".csv" style="display:none;" />
+    </div>
+
+    <table id="unitTable">
+      <thead>
+        <tr>
+          <th id="idHeader" onclick="toggleSort('id')" style="cursor: pointer;">Truck ID <span id='idArrow'></span></th>
+          <th id="typeHeader" style="display: none;">Trailer Type</th>
+          <th>Status</th>
+          <th>Year</th>
+          <th>Model</th>
+          <th>Owned By</th>
+          <th>Driver Type</th>
+          <th onclick="toggleSort('dot')" style="cursor: pointer;">DOT Due in <span id='dotArrow'></span></th>
+          <th>Maintenance</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+
+  <script>
+    let sortField = null;
+    let sortAsc = true;
+    let trucks = [], trailers = [];
+    let showingTrucks = true;
+    let currentSort = { key: null, ascending: true };
+
+    const normalize = str => str?.replace(/^"+|"+$/g, "").trim();
+    const parseCSV = text => {
+      const parsed = Papa.parse(text, { header: true, skipEmptyLines: true }).data;
+      return parsed.map(row => {
+        const normalized = {};
+        for (const key in row) {
+          normalized[key.trim().toLowerCase()] = row[key];
+        }
+        return normalized;
+      });
+    };
+
+    const getDotColor = date => {
+      const today = new Date();
+      const due = new Date(date);
+      const days = (due - today) / (1000 * 60 * 60 * 24);
+      if (isNaN(days)) return "dot-red";
+      if (days < 0) return "dot-red";
+      if (days < 30) return "dot-yellow";
+      return "dot-green";
+    };
+
+    const daysUntil = date => {
+      const today = new Date();
+      const due = new Date(date);
+      if (!date || isNaN(due)) return "No Date Entered";
+      const days = Math.floor((due - today) / (1000 * 60 * 60 * 24));
+      return days < 0 ? "Overdue" : `${days} days`;
+    };
+
+    const updateUnitCounts = (fullData) => {
+      let active = 0, inactive = 0;
+      fullData.forEach(row => {
+        const isActiveRaw = row["is active"] ?? row["Is Active"] ?? "";
+        const isActive = isActiveRaw.toString().toLowerCase().includes("true") || isActiveRaw.toString().toLowerCase().includes("yes");
+        if (isActive) active++;
+        else inactive++;
+      });
+      document.getElementById("unitCounts").textContent = `Active: ${active} | Inactive: ${inactive}`;
+    };
+
+    const renderTable = (data) => {
+      data.sort((a, b) => {
+        const rawA = a["inspection due on"];
+        const rawB = b["inspection due on"];
+        const dateA = new Date(rawA);
+        const dateB = new Date(rawB);
+        const now = new Date();
+
+        const validA = !isNaN(dateA);
+        const validB = !isNaN(dateB);
+
+        const isEmptyA = !rawA || rawA.trim() === "";
+        const isEmptyB = !rawB || rawB.trim() === "";
+
+        if (isEmptyA && !isEmptyB) return -1;
+        if (!isEmptyA && isEmptyB) return 1;
+        if (isEmptyA && isEmptyB) return 0;
+
+        const overdueA = validA && dateA < now;
+        const overdueB = validB && dateB < now;
+
+        if (overdueA && !overdueB) return -1;
+        if (!overdueA && overdueB) return 1;
+
+        return dateA - dateB;
+      });
+
+      const search = document.getElementById("search").value.toLowerCase();
+      const statusFilter = document.getElementById("statusFilter").value;
+      const body = document.getElementById("tableBody");
+      const idHeader = document.getElementById("idHeader");
+      idHeader.textContent = showingTrucks ? "Truck ID" : "Trailer ID";
+
+      let filtered = data.filter(row => {
+        const id = normalize(showingTrucks ? row.truckid : row.trailerid);
+        const isActiveRaw = row["is active"] ?? row["Is Active"] ?? "";
+        const status = isActiveRaw.toString().toLowerCase().includes("true") || isActiveRaw.toString().toLowerCase().includes("yes") ? "Active" : "Inactive";
+        if (statusFilter !== "all" && status.toLowerCase() !== statusFilter) return false;
+        const rowStr = Object.values(row).join(" ").toLowerCase();
+        return !search || rowStr.includes(search);
+      });
+
+      body.innerHTML = "";
+      for (const row of filtered) {
+        const id = normalize(showingTrucks ? row.truckid || row.TruckId : row.trailerid || row.TrailerId);
+        const isActiveRaw = row["is active"] ?? row["Is Active"] ?? "";
+        const status = isActiveRaw.toString().toLowerCase().includes("true") || isActiveRaw.toString().toLowerCase().includes("yes") ? "Active" : "Inactive";
+        const year = normalize(row["make year"]);
+        const model = normalize(row.model);
+        let ownedBy = normalize(showingTrucks ? row["owned by"] : row["leasingcompanyname"]);
+        if (!showingTrucks) {
+          if (ownedBy === "Silver Trucking LLC") ownedBy = "Silver Trucking";
+          else if (ownedBy === "Silver Equipment Leasing LLC") ownedBy = "Silver Equipment";
+          else ownedBy = "Other";
+        }
+        const trailerType = normalize(row["trailer type"]);
+        const driverType = showingTrucks
+          ? (normalize(row["carrier id"]) || "Company Driver")
+          : trailerType;
+        const dueDate = row["inspection due on"];
+
+        body.innerHTML += `
+          <tr>
+            <td>${id}</td>
+            ${showingTrucks ? '' : `<td>${trailerType}</td>`}
+            <td>${status}</td>
+            <td>${year}</td>
+            <td>${model}</td>
+            <td>${ownedBy}</td>
+            <td>${driverType}</td>
+            <td>${daysUntil(dueDate)}</td>
+            <td><span class="status-dot ${getDotColor(dueDate)}"></span></td>
+          </tr>
+        `;
+      }
+
+      updateUnitCounts(data);
+
+      // Update dot summary for active units
+      let red = 0, yellow = 0, green = 0;
+      filtered.forEach(row => {
+        const isActiveRaw = row["is active"] ?? row["Is Active"] ?? "";
+        const isActive = isActiveRaw.toString().toLowerCase().includes("true") || isActiveRaw.toString().toLowerCase().includes("yes");
+        if (!isActive) return;
+        const color = getDotColor(row["inspection due on"]);
+        if (color === "dot-red") red++;
+        else if (color === "dot-yellow") yellow++;
+        else if (color === "dot-green") green++;
+      });
+      document.getElementById("redCount").textContent = red;
+      document.getElementById("yellowCount").textContent = yellow;
+      document.getElementById("greenCount").textContent = green;
+    };
+
+    const loadCSV = file => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const parsed = parseCSV(e.target.result);
+        if (parsed[0]?.truckid !== undefined || parsed[0]?.TruckId !== undefined) {
+          trucks = parsed.map(row => ({ ...row, source: 'truck' }));
+          if (showingTrucks) renderTable(trucks);
+        } else if (parsed[0]?.trailerid !== undefined || parsed[0]?.TrailerId !== undefined) {
+          trailers = parsed.map(row => ({ ...row, source: 'trailer' }));
+          if (!showingTrucks) renderTable(trailers);
+        }
+      };
+      reader.readAsText(file);
+    };
+
+    document.getElementById("csvUpload").addEventListener("change", e => loadCSV(e.target.files[0]));
+    const dropzone = document.getElementById("dropzone");
+    dropzone.addEventListener("click", () => document.getElementById("csvUpload").click());
+    dropzone.addEventListener("dragover", e => { e.preventDefault(); dropzone.style.background = "#e0f7fa"; });
+    dropzone.addEventListener("dragleave", () => dropzone.style.background = "#f9f9f9");
+    dropzone.addEventListener("drop", e => {
+      e.preventDefault(); dropzone.style.background = "#f9f9f9";
+      if (e.dataTransfer.files.length) loadCSV(e.dataTransfer.files[0]);
+    });
+
+    document.getElementById("truckBtn").onclick = () => {
+      document.getElementById("typeHeader").style.display = "none";
+      showingTrucks = true;
+      document.getElementById("truckBtn").classList.add("active");
+      document.getElementById("trailerBtn").classList.remove("active");
+      renderTable(trucks);
+    };
+    document.getElementById("trailerBtn").onclick = () => {
+      document.getElementById("typeHeader").style.display = "table-cell";
+      showingTrucks = false;
+      document.getElementById("trailerBtn").classList.add("active");
+      document.getElementById("truckBtn").classList.remove("active");
+      renderTable(trailers);
+    };
+    document.getElementById("search").addEventListener("input", () => renderTable(showingTrucks ? trucks : trailers));
+    document.getElementById("statusFilter").addEventListener("change", () => renderTable(showingTrucks ? trucks : trailers));
+  </script>
+</body>
+</html>

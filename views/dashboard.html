@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="icon" href="/images/favicon.ico" type="image/x-icon" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard – Silver Maintenance</title>
+  <style>
+    body { margin: 0; font-family: 'Segoe UI', sans-serif; background-color: #c0c0c0; color: #333; }
+    header { background-color: #003366; color: white; display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1.5rem; }
+    header img { height: 40px; }
+    nav a { color: white; text-decoration: none; margin-left: 1rem; font-weight: 500; }
+    nav a:hover { text-decoration: underline; }
+    main { padding: 2rem; max-width: 800px; margin: auto; background: white; border-radius: 8px; margin-top: 2rem; box-shadow: 0 4px 12px rgba(0,0,0,0.1); position: relative; }
+    .status { margin-top: 1rem; font-size: 1.1rem; }
+    .app-links { display: flex; flex-wrap: wrap; gap: 2rem; justify-content: center; margin-top: 2rem; }
+    .app-links a img { width: 80px; height: 80px; object-fit: contain; transition: transform 0.2s ease; }
+    .app-links a:hover img { transform: scale(1.05); }
+    .divider { margin: 2rem 0; border: none; border-top: 1px solid #ccc; }
+    .status-dot { width: 16px; height: 16px; border-radius: 50%; display: inline-block; }
+    .dot-green { background-color: green; }
+    .dot-yellow { background-color: gold; }
+    .dot-red { background-color: red; }
+    #dashboardStatus { display: flex; justify-content: space-between; gap: 2rem; margin-bottom: 1rem; }
+    #dashboardStatus > div { display: flex; gap: 10px; align-items: center; font-weight: bold; }
+    /* Chat box styles */
+    #chatContainer { position: fixed; bottom: 20px; right: 20px; width: 270px; max-height: 640px; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: flex; flex-direction: column; overflow: hidden; font-size: 0.95rem; z-index: 10000; }
+    #chatHeader { background-color: #003366; color: white; padding: 0.75rem; cursor: pointer; user-select: none; }
+    #chatMessages { flex: 1; padding: 0.75rem; overflow-y: auto; background: #f5f5f5; }
+    .chat-message.user { text-align: right; margin-bottom: 0.5rem; }
+    .chat-message.assistant { text-align: left; margin-bottom: 0.5rem; }
+    #chatInputContainer { display: flex; border-top: 1px solid #ccc; }
+    #chatInput { flex: 1; border: none; padding: 0.75rem; }
+    #chatInput:focus { outline: none; }
+    #chatSend { background-color: #003366; color: white; border: none; padding: 0 1rem; cursor: pointer; }
+    @media (max-width: 600px) {
+      header { flex-direction: column; align-items: flex-start; }
+      nav { margin-top: 0.5rem; }
+      nav a { margin-left: 0; margin-right: 1rem; }
+      .app-links { gap: 1rem; }
+      .app-links a img { width: 60px; height: 60px; }
+      #dashboardStatus { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="/images/logo.png" alt="Silver Logo" />
+    <nav>
+      <a href="/dashboard.html">Dashboard</a>
+      <a href="/units.html">Units</a>
+      <a href="/schedules.html">Schedules</a>
+      <a href="/logout">Logout</a>
+    </nav>
+  </header>
+  <main>
+    <h2>Welcome to Silver's Maintenance Tracker!</h2>
+    <p class="status">✅ You are logged in</p>
+    <div class="app-links">
+      <a href="https://ng01.ditat.net/" target="_blank"><img src="/images/ditat-150.png" alt="Ditat" /></a>
+      <a href="https://cloud.samsara.com/signin" target="_blank"><img src="/images/samsara-150.png" alt="Samsara" /></a>
+      <a href="https://accounts.intuit.com/app/sign-in?app_group=QBO&asset_alias=Intuit.accounting.core.qbowebapp&app_environment=prod&intent=qbo&origin-server=ew" target="_blank"><img src="/images/quickbooks-150.png" alt="QuickBooks" /></a>
+      <a href="https://drive.google.com/drive/folders/1dPf7JgE9ymH6Aye9-XhX5JwEBSW8A-pf?usp=drive_link" target="_blank"><img src="/images/google-150.png" alt="Google Drive" /></a>
+    </div>
+    <hr class="divider" />
+    <div id="dashboardStatus">
+      <div id="truckStatusSummary"><span>Trucks:</span><span class="status-dot dot-red"></span><span id="truckRedCount">0</span><span class="status-dot dot-yellow"></span><span id="truckYellowCount">0</span><span class="status-dot dot-green"></span><span id="truckGreenCount">0</span></div>
+      <div id="trailerStatusSummary"><span>Trailers:</span><span class="status-dot dot-red"></span><span id="trailerRedCount">0</span><span class="status-dot dot-yellow"></span><span id="trailerYellowCount">0</span><span class="status-dot dot-green"></span><span id="trailerGreenCount">0</span></div>
+    </div>
+    <hr class="divider" />
+    <!-- AI Tool -->
+    <div id="chatContainer">
+      <div id="chatHeader">AI Tool for Mechanical Issues <span style="float:right;">&#x2212;</span></div>
+      <div id="chatMessages"></div>
+      <div id="chatInputContainer">
+        <input type="text" id="chatInput" placeholder="Ask mechanical question..." />
+        <button id="chatSend">Send</button>
+      </div>
+    </div>
+  </main>
+  <div id="logout-warning" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff3cd;border:1px solid #ffeeba;padding:2rem;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.2);z-index:9999;">
+    <img src="/images/logout-icon.png" alt="Logout Warning" style="width:60px;margin-right:1.5rem;" />
+    <div><strong style="font-size:1.2rem;">You're about to be logged out due to inactivity.</strong><br><span id="logout-timer" style="font-size:1.5rem;font-weight:bold;">05:00</span> remaining...</div>
+  </div>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Inactivity auto-logout
+      const INACTIVITY_LIMIT_MINUTES = 60;
+      const WARNING_DURATION_SECONDS = 300;
+      let logoutTimeout, countdownInterval;
+      const warningBox = document.getElementById('logout-warning');
+      function resetTimers() {
+        clearTimeout(logoutTimeout);
+        clearInterval(countdownInterval);
+        warningBox.style.display = 'none';
+        logoutTimeout = setTimeout(showWarning, INACTIVITY_LIMIT_MINUTES * 60 * 1000);
+      }
+      function showWarning() {
+        warningBox.style.display = 'flex';
+        let remaining = WARNING_DURATION_SECONDS;
+        const timerText = document.getElementById('logout-timer');
+        countdownInterval = setInterval(() => {
+          remaining--;
+          timerText.textContent = `${String(Math.floor(remaining/60)).padStart(2,'0')}:${String(remaining%60).padStart(2,'0')}`;
+          if (remaining <= 0) window.location.href = '/logout';
+        }, 1000);
+      }
+      ['click','mousemove','keypress','scroll'].forEach(evt => document.addEventListener(evt, resetTimers));
+      resetTimers();
+
+      // Chat box logic
+      const chatHeader = document.getElementById('chatHeader');
+      const chatMessages = document.getElementById('chatMessages');
+      const chatInput = document.getElementById('chatInput');
+      const chatSend = document.getElementById('chatSend');
+      const inputContainer = document.getElementById('chatInputContainer');
+      let chatOpen = true;
+      chatHeader.onclick = () => {
+        chatOpen = !chatOpen;
+        chatMessages.style.display = chatOpen ? 'block' : 'none';
+        inputContainer.style.display = chatOpen ? 'flex' : 'none';
+        chatHeader.querySelector('span').textContent = chatOpen ? '\u2212' : '\u002B';
+      };
+      chatSend.onclick = async () => {
+        const msg = chatInput.value.trim();
+        if (!msg) return;
+        const userDiv = document.createElement('div'); userDiv.className = 'chat-message user'; userDiv.textContent = msg;
+        chatMessages.appendChild(userDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        chatInput.value = '';
+        try {
+          const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: msg }) });
+          const { reply } = await res.json();
+          const assistantDiv = document.createElement('div'); assistantDiv.className = 'chat-message assistant'; assistantDiv.textContent = reply;
+          chatMessages.appendChild(assistantDiv);
+        } catch (e) {
+          const errDiv = document.createElement('div'); errDiv.className = 'chat-message assistant'; errDiv.textContent = 'Error: Unable to reach AI service.';
+          chatMessages.appendChild(errDiv);
+        }
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      };
+    });
+  </script>
+</body>
+</html>
