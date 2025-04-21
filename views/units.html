@@ -358,19 +358,20 @@ window.addEventListener('DOMContentLoaded', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ trucks: truckRows, trailers: trailerRows })
     })
-    .then(res => res.json())
-    .then(result => {
-      console.log('✅ Uploaded parsed data to server', result);
-      trucks = truckRows;
-      trailers = trailerRows;
-      renderTable(showingTrucks ? trucks : trailers);
-    })
-    .catch(err => {
-      console.error('❌ Failed to upload data:', err);
-    });
+      .then(res => res.json())
+      .then(result => {
+        console.log('✅ Uploaded parsed data to server', result);
+        trucks = truckRows;
+        trailers = trailerRows;
+        renderTable(showingTrucks ? trucks : trailers);
+      })
+      .catch(err => {
+        console.error('❌ Failed to upload data:', err);
+      });
   };
   reader.readAsText(file);
 };
+
 
 
     document.getElementById("csvUpload").addEventListener("change", e => loadCSV(e.target.files[0]));
