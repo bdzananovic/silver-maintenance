@@ -27,7 +27,7 @@ app.use(session({
 }));
 
 // JSON body parser
-app.use(bodyParser.json());
+app.use(bodyParser.json({ limit: '10mb' }));
 
 // Passport
 app.use(passport.initialize());
