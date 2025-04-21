@@ -8,17 +8,24 @@ const fs = require('fs');
 
 const app = express();
 
-// Ditat route (still included in case needed)
+// Ditat route
 const ditatRoutes = require('./routes/ditat');
 
-// Session config
+// Serve public folder for JS/CSS (like config.js)
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Serve views and images
+app.use(express.static(path.join(__dirname, 'views')));
+app.use('/images', express.static(path.join(__dirname, 'views/images')));
+
+// Session setup
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
 }));
 
-// Passport config
+// Passport setup
 app.use(passport.initialize());
 app.use(passport.session());
 
@@ -40,28 +47,25 @@ passport.deserializeUser((user, done) => {
   done(null, user);
 });
 
-// Serve views folder
-app.use(express.static(path.join(__dirname, 'views')));
-app.use('/images', express.static(path.join(__dirname, 'views/images')));
-
+// Log available HTML views for reference
 console.log('📁 Available HTML views:', fs.readdirSync(path.join(__dirname, 'views')));
 
 // Ditat API routes
 app.use('/api/ditat', ditatRoutes);
 
-// Middleware to protect dashboard
+// Auth-protected dashboard
 app.use('/dashboard.html', (req, res, next) => {
   if (!req.isAuthenticated()) return res.redirect('/login.html');
   next();
 });
 
-// ✅ Serve units.html directly with auth check
+// Auth-protected units page
 app.get('/units.html', (req, res) => {
   if (!req.isAuthenticated()) return res.redirect('/login.html');
   res.sendFile(path.join(__dirname, 'views', 'units.html'));
 });
 
-// Auth routes
+// Google OAuth routes
 app.get('/auth/google',
   passport.authenticate('google', { scope: ['profile', 'email'] })
 );
@@ -78,7 +82,15 @@ app.get('/logout', (req, res) => {
   });
 });
 
-// Start server
+// ✅ Test route for unit data
+app.get('/api/units', (req, res) => {
+  res.json([
+    { TruckId: '123', status: 'Active' },
+    { TruckId: '456', status: 'Inactive' }
+  ]);
+});
+
+// ✅ Start the server
 app.listen(3000, () => {
   console.log('✅ App is running on http://localhost:3000');
 });

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script src="/js/config.js"></script>
   <link rel="icon" href="/images/favicon.ico" type="image/x-icon" />
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -366,5 +367,25 @@
     document.getElementById("search").addEventListener("input", () => renderTable(showingTrucks ? trucks : trailers));
     document.getElementById("statusFilter").addEventListener("change", () => renderTable(showingTrucks ? trucks : trailers));
   </script>
+  <script>
+    // Simple fetch test to confirm live API connection
+    fetch(`${API_BASE}/api/units`)
+      .then(response => response.json())
+      .then(data => {
+        console.log('✅ Fetched units from Railway:', data);
+        // Optional: show the count on the page
+        const message = document.createElement('p');
+        message.textContent = `Fetched ${data.length} units from live server`;
+        document.body.appendChild(message);
+      })
+      .catch(error => {
+        console.error('❌ Error fetching from Railway:', error);
+        const errorMsg = document.createElement('p');
+        errorMsg.textContent = 'Failed to fetch unit data from server.';
+        errorMsg.style.color = 'red';
+        document.body.appendChild(errorMsg);
+      });
+  </script>
+  
 </body>
 </html>
