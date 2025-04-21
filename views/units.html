@@ -189,6 +189,18 @@
     let trucks = [], trailers = [];
     let showingTrucks = true;
     let currentSort = { key: null, ascending: true };
+// Load saved unit data from server
+window.addEventListener('DOMContentLoaded', () => {
+  fetch(`${API_BASE}/api/units`)
+    .then(res => res.json())
+    .then(data => {
+      trucks = (data.trucks || []).map(row => ({ ...row, source: 'truck' }));
+      trailers = (data.trailers || []).map(row => ({ ...row, source: 'trailer' }));
+      renderTable(showingTrucks ? trucks : trailers);
+    })
+    .catch(err => console.error('❌ Error loading saved units:', err));
+});
+
 
     const normalize = str => str?.replace(/^"+|"+$/g, "").trim();
     const parseCSV = text => {
@@ -326,19 +338,40 @@
     };
 
     const loadCSV = file => {
-      const reader = new FileReader();
-      reader.onload = e => {
-        const parsed = parseCSV(e.target.result);
-        if (parsed[0]?.truckid !== undefined || parsed[0]?.TruckId !== undefined) {
-          trucks = parsed.map(row => ({ ...row, source: 'truck' }));
-          if (showingTrucks) renderTable(trucks);
-        } else if (parsed[0]?.trailerid !== undefined || parsed[0]?.TrailerId !== undefined) {
-          trailers = parsed.map(row => ({ ...row, source: 'trailer' }));
-          if (!showingTrucks) renderTable(trailers);
-        }
-      };
-      reader.readAsText(file);
-    };
+  const reader = new FileReader();
+  reader.onload = e => {
+    const parsed = parseCSV(e.target.result);
+
+    let truckRows = [];
+    let trailerRows = [];
+
+    parsed.forEach(row => {
+      if (row.truckid || row.TruckId) {
+        truckRows.push({ ...row, source: 'truck' });
+      } else if (row.trailerid || row.TrailerId) {
+        trailerRows.push({ ...row, source: 'trailer' });
+      }
+    });
+
+    fetch(`${API_BASE}/api/upload`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trucks: truckRows, trailers: trailerRows })
+    })
+    .then(res => res.json())
+    .then(result => {
+      console.log('✅ Uploaded parsed data to server', result);
+      trucks = truckRows;
+      trailers = trailerRows;
+      renderTable(showingTrucks ? trucks : trailers);
+    })
+    .catch(err => {
+      console.error('❌ Failed to upload data:', err);
+    });
+  };
+  reader.readAsText(file);
+};
+
 
     document.getElementById("csvUpload").addEventListener("change", e => loadCSV(e.target.files[0]));
     const dropzone = document.getElementById("dropzone");
@@ -367,25 +400,68 @@
     document.getElementById("search").addEventListener("input", () => renderTable(showingTrucks ? trucks : trailers));
     document.getElementById("statusFilter").addEventListener("change", () => renderTable(showingTrucks ? trucks : trailers));
   </script>
-  <script>
-    // Simple fetch test to confirm live API connection
-    fetch(`${API_BASE}/api/units`)
-      .then(response => response.json())
-      .then(data => {
-        console.log('✅ Fetched units from Railway:', data);
-        // Optional: show the count on the page
-        const message = document.createElement('p');
-        message.textContent = `Fetched ${data.length} units from live server`;
-        document.body.appendChild(message);
-      })
-      .catch(error => {
-        console.error('❌ Error fetching from Railway:', error);
-        const errorMsg = document.createElement('p');
-        errorMsg.textContent = 'Failed to fetch unit data from server.';
-        errorMsg.style.color = 'red';
-        document.body.appendChild(errorMsg);
-      });
-  </script>
+ <script>
+    const INACTIVITY_LIMIT_MINUTES = 60;
+    const WARNING_DURATION_SECONDS = 300; // 5 minutes
   
+    let warningShown = false;
+    let logoutTimeout;
+    let countdownInterval;
+  
+    function resetTimers() {
+      clearTimeout(logoutTimeout);
+      clearInterval(countdownInterval);
+      document.getElementById("logout-warning").style.display = "none";
+      warningShown = false;
+  
+      logoutTimeout = setTimeout(showWarning, INACTIVITY_LIMIT_MINUTES * 60 * 1000);
+    }
+  
+    function showWarning() {
+      warningShown = true;
+      const warningBox = document.getElementById("logout-warning");
+      warningBox.style.display = "flex";
+  
+      let remaining = WARNING_DURATION_SECONDS;
+      const timerText = document.getElementById("logout-timer");
+  
+      countdownInterval = setInterval(() => {
+        remaining--;
+        const minutes = String(Math.floor(remaining / 60)).padStart(2, "0");
+        const seconds = String(remaining % 60).padStart(2, "0");
+        timerText.textContent = `${minutes}:${seconds}`;
+        if (remaining <= 0) {
+          clearInterval(countdownInterval);
+          window.location.href = "/logout";
+        }
+      }, 1000);
+    }
+  
+    ['click', 'mousemove', 'keypress', 'scroll'].forEach(evt =>
+      document.addEventListener(evt, resetTimers)
+    );
+  
+    resetTimers();
+  </script>
+  <div id="logout-warning" style="
+  display: none;
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: #fff3cd;
+  border: 1px solid #ffecb5;
+  color: #856404;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  font-weight: bold;
+  z-index: 9999;
+  align-items: center;
+  gap: 10px;
+">
+  <img src="/images/logout-icon.png" style="height: 24px; margin-right: 10px;" />
+  Inactivity detected – logging out in <span id="logout-timer">05:00</span>
+</div>
+
 </body>
 </html>
