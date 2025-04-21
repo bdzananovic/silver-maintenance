@@ -90,6 +90,12 @@ app.get('/api/units', (req, res) => {
   ]);
 });
 
+// ✅ Smart root redirect
+app.get('/', (req, res) => {
+  if (!req.isAuthenticated()) return res.redirect('/login.html');
+  res.redirect('/dashboard.html');
+});
+
 // ✅ Start the server
 app.listen(3000, () => {
   console.log('✅ App is running on http://localhost:3000');
