@@ -5,6 +5,7 @@ const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const path = require('path');
 const fs = require('fs');
+const bodyParser = require('body-parser');
 
 const app = express();
 
@@ -25,6 +26,9 @@ app.use(session({
   saveUninitialized: false,
 }));
 
+// Body parser for JSON data
+app.use(bodyParser.json());
+
 // Passport setup
 app.use(passport.initialize());
 app.use(passport.session());
@@ -32,10 +36,7 @@ app.use(passport.session());
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-
-  // ✅ FIXED: Use full HTTPS URL for Railway deployment
   callbackURL: "https://silver-maintenance-production.up.railway.app/auth/google/callback"
-
 }, (accessToken, refreshToken, profile, done) => {
   if (profile._json.hd !== "silvertruckingllc.com") {
     return done(null, false, { message: "Not a company email" });
@@ -85,21 +86,36 @@ app.get('/logout', (req, res) => {
   });
 });
 
-// ✅ Test route for unit data
+// ✅ NEW: Route to return saved units
+const unitsFile = path.join(__dirname, 'data', 'units.json');
+
 app.get('/api/units', (req, res) => {
-  res.json([
-    { TruckId: '123', status: 'Active' },
-    { TruckId: '456', status: 'Inactive' }
-  ]);
+  if (fs.existsSync(unitsFile)) {
+    const data = fs.readFileSync(unitsFile);
+    res.json(JSON.parse(data));
+  } else {
+    res.json([]); // No units yet
+  }
 });
 
-// ✅ Smart root redirect
+// ✅ NEW: Route to save uploaded units
+app.post('/api/upload', (req, res) => {
+  const units = req.body;
+  if (!Array.isArray(units)) {
+    return res.status(400).json({ error: 'Expected an array of units' });
+  }
+
+  fs.writeFileSync(unitsFile, JSON.stringify(units, null, 2));
+  res.json({ success: true });
+});
+
+// Smart root redirect
 app.get('/', (req, res) => {
   if (!req.isAuthenticated()) return res.redirect('/login.html');
   res.redirect('/dashboard.html');
 });
 
-// ✅ Start the server
+// Start the server
 app.listen(3000, () => {
   console.log('✅ App is running on http://localhost:3000');
 });
