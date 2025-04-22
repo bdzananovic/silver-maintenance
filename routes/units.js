@@ -3,25 +3,23 @@ const fs = require('fs');
 const path = require('path');
 
 const router = express.Router();
-const dataFilePath = path.join(__dirname, '..', 'data', 'units.json');
+const trucksPath = path.join(__dirname, '..', 'data', 'trucks.json');
+const trailersPath = path.join(__dirname, '..', 'data', 'trailers.json');
 
 router.get('/', (req, res) => {
-  fs.readFile(dataFilePath, 'utf-8', (err, data) => {
-    if (err) {
-      console.error('Error reading units file:', err);
-      return res.status(500).json({ error: 'Failed to read unit data' });
-    }
+  try {
+    const trucks = fs.existsSync(trucksPath)
+      ? JSON.parse(fs.readFileSync(trucksPath, 'utf-8'))
+      : [];
+    const trailers = fs.existsSync(trailersPath)
+      ? JSON.parse(fs.readFileSync(trailersPath, 'utf-8'))
+      : [];
 
-    try {
-      const parsed = JSON.parse(data);
-      const trucks = Array.isArray(parsed.trucks) ? parsed.trucks : [];
-      const trailers = Array.isArray(parsed.trailers) ? parsed.trailers : [];
-      res.json({ trucks, trailers });
-    } catch (parseErr) {
-      console.error('Error parsing unit JSON:', parseErr);
-      res.status(500).json({ error: 'Failed to parse unit data' });
-    }
-  });
+    res.json({ trucks, trailers });
+  } catch (err) {
+    console.error('❌ Error reading unit files:', err);
+    res.status(500).json({ error: 'Failed to read unit data' });
+  }
 });
 
 module.exports = router;

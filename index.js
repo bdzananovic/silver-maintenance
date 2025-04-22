@@ -11,10 +11,10 @@ const compression = require('compression');
 
 const app = express();
 
-// Routers
+// Routers (these must export router objects)
 const ditatRoutes = require('./routes/ditat');
-const uploadTrucks = require('./routes/uploadTrucks');
-const uploadTrailers = require('./routes/uploadTrailers');
+const uploadTrucksRouter = require('./routes/uploadTrucks');
+const uploadTrailersRouter = require('./routes/uploadTrailers');
 const unitsRouter = require('./routes/units');
 
 // Middleware
@@ -25,14 +25,14 @@ app.use(express.static(path.join(__dirname, 'views')));
 app.use('/images', express.static(path.join(__dirname, 'views/images')));
 app.use(bodyParser.json({ limit: '10mb' }));
 
-// Session
+// Sessions
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
 }));
 
-// Passport
+// Passport setup
 app.use(passport.initialize());
 app.use(passport.session());
 
@@ -50,13 +50,13 @@ passport.use(new GoogleStrategy({
 passport.serializeUser((user, done) => done(null, user));
 passport.deserializeUser((user, done) => done(null, user));
 
-// Console log views folder for reference
+// Log available views for debug
 console.log('📁 Available HTML views:', fs.readdirSync(path.join(__dirname, 'views')));
 
-// API Routes
+// API routes
 app.use('/api/ditat', ditatRoutes);
-app.use('/api/upload/trucks', uploadTrucks);
-app.use('/api/upload/trailers', uploadTrailers);
+app.use('/api/upload/trucks', uploadTrucksRouter);
+app.use('/api/upload/trailers', uploadTrailersRouter);
 app.use('/api/units', unitsRouter);
 
 // Auth-protected pages
@@ -70,7 +70,12 @@ app.get('/units.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'units.html'));
 });
 
-// Google OAuth
+app.get('/schedules.html', (req, res) => {
+  if (!req.isAuthenticated()) return res.redirect('/login.html');
+  res.sendFile(path.join(__dirname, 'views', 'schedules.html'));
+});
+
+// Google OAuth routes
 app.get('/auth/google',
   passport.authenticate('google', { scope: ['profile', 'email'] })
 );
@@ -80,31 +85,31 @@ app.get('/auth/google/callback',
   (req, res) => res.redirect('/dashboard.html')
 );
 
-// Logout
+// Logout route
 app.get('/logout', (req, res) => {
   req.logout(() => {
     res.redirect('/logout.html');
   });
 });
 
-// Smart root redirect
+// Smart redirect from root
 app.get('/', (req, res) => {
   if (!req.isAuthenticated()) return res.redirect('/login.html');
   res.redirect('/dashboard.html');
 });
 
-// 404 handler (should come after all routes)
+// 404 handler
 app.use((req, res) => {
   res.status(404).sendFile(path.join(__dirname, 'views', '404.html'));
 });
 
-// Error logging middleware
+// Global error handler
 app.use((err, req, res, next) => {
   console.error('🔥 Server Error:', err.stack);
   res.status(500).send('Something went wrong!');
 });
 
-// Server (Updated for Railway)
+// Server start
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`✅ App is running on http://localhost:${PORT}`);
