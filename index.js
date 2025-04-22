@@ -11,28 +11,34 @@ const compression = require('compression');
 
 const app = express();
 
-// Routers (these must export router objects)
+// Routers
 const ditatRoutes = require('./routes/ditat');
 const uploadTrucksRouter = require('./routes/uploadTrucks');
 const uploadTrailersRouter = require('./routes/uploadTrailers');
 const unitsRouter = require('./routes/units');
 
+// Debug: check exports
+console.log('🧪 typeof ditatRoutes:', typeof ditatRoutes);
+console.log('🧪 typeof uploadTrucksRouter:', typeof uploadTrucksRouter);
+console.log('🧪 typeof uploadTrailersRouter:', typeof uploadTrailersRouter);
+console.log('🧪 typeof unitsRouter:', typeof unitsRouter);
+
 // Middleware
-app.use(helmet()); // Security headers
-app.use(compression()); // Gzip compression
+app.use(helmet());
+app.use(compression());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'views')));
 app.use('/images', express.static(path.join(__dirname, 'views/images')));
 app.use(bodyParser.json({ limit: '10mb' }));
 
-// Sessions
+// Session
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
 }));
 
-// Passport setup
+// Passport
 app.use(passport.initialize());
 app.use(passport.session());
 
@@ -50,16 +56,16 @@ passport.use(new GoogleStrategy({
 passport.serializeUser((user, done) => done(null, user));
 passport.deserializeUser((user, done) => done(null, user));
 
-// Log available views for debug
+// Log views for debug
 console.log('📁 Available HTML views:', fs.readdirSync(path.join(__dirname, 'views')));
 
-// API routes
+// API Routes
 app.use('/api/ditat', ditatRoutes);
 app.use('/api/upload/trucks', uploadTrucksRouter);
 app.use('/api/upload/trailers', uploadTrailersRouter);
 app.use('/api/units', unitsRouter);
 
-// Auth-protected pages
+// Protected Routes
 app.get('/dashboard.html', (req, res) => {
   if (!req.isAuthenticated()) return res.redirect('/login.html');
   res.sendFile(path.join(__dirname, 'views', 'dashboard.html'));
@@ -75,7 +81,7 @@ app.get('/schedules.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'schedules.html'));
 });
 
-// Google OAuth routes
+// OAuth Routes
 app.get('/auth/google',
   passport.authenticate('google', { scope: ['profile', 'email'] })
 );
@@ -85,31 +91,31 @@ app.get('/auth/google/callback',
   (req, res) => res.redirect('/dashboard.html')
 );
 
-// Logout route
+// Logout
 app.get('/logout', (req, res) => {
   req.logout(() => {
     res.redirect('/logout.html');
   });
 });
 
-// Smart redirect from root
+// Root
 app.get('/', (req, res) => {
   if (!req.isAuthenticated()) return res.redirect('/login.html');
   res.redirect('/dashboard.html');
 });
 
-// 404 handler
+// 404 Page
 app.use((req, res) => {
   res.status(404).sendFile(path.join(__dirname, 'views', '404.html'));
 });
 
-// Global error handler
+// Global Error Handler
 app.use((err, req, res, next) => {
   console.error('🔥 Server Error:', err.stack);
   res.status(500).send('Something went wrong!');
 });
 
-// Server start
+// Server Listen
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`✅ App is running on http://localhost:${PORT}`);
