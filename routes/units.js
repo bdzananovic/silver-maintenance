@@ -3,18 +3,38 @@ const fs = require('fs');
 const path = require('path');
 
 const router = express.Router();
-const dataPath = path.join(__dirname, '..', 'data');
+const dataDir = path.join(__dirname, '..', 'data');
 
-// Combine trucks and trailers and serve them
-router.get('/', (req, res) => {
-  try {
-    const trucks = JSON.parse(fs.readFileSync(path.join(dataPath, 'trucks.json'), 'utf8'));
-    const trailers = JSON.parse(fs.readFileSync(path.join(dataPath, 'trailers.json'), 'utf8'));
-    res.json({ trucks, trailers });
-  } catch (err) {
-    console.error('❌ Failed to read or parse truck/trailer data:', err);
-    res.status(500).json({ error: 'Server error reading unit data' });
-  }
+router.get('/trucks', (req, res) => {
+  fs.readFile(path.join(dataDir, 'trucks.json'), 'utf8', (err, data) => {
+    if (err) {
+      console.error('Error reading trucks.json:', err);
+      return res.status(500).json({ error: 'Failed to read trucks data' });
+    }
+    try {
+      const trucks = JSON.parse(data);
+      res.json(trucks);
+    } catch (parseErr) {
+      console.error('Error parsing trucks.json:', parseErr);
+      res.status(500).json({ error: 'Invalid trucks data format' });
+    }
+  });
+});
+
+router.get('/trailers', (req, res) => {
+  fs.readFile(path.join(dataDir, 'trailers.json'), 'utf8', (err, data) => {
+    if (err) {
+      console.error('Error reading trailers.json:', err);
+      return res.status(500).json({ error: 'Failed to read trailers data' });
+    }
+    try {
+      const trailers = JSON.parse(data);
+      res.json(trailers);
+    } catch (parseErr) {
+      console.error('Error parsing trailers.json:', parseErr);
+      res.status(500).json({ error: 'Invalid trailers data format' });
+    }
+  });
 });
 
 module.exports = router;
