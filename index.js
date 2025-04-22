@@ -6,18 +6,24 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const path = require('path');
 const fs = require('fs');
 const bodyParser = require('body-parser');
+const helmet = require('helmet');
+const compression = require('compression');
 
 const app = express();
 
 // Routers
 const ditatRoutes = require('./routes/ditat');
-const uploadRouter = require('./routes/upload');
+const uploadTrucks = require('./routes/uploadTrucks');
+const uploadTrailers = require('./routes/uploadTrailers');
 const unitsRouter = require('./routes/units');
 
-// Static file serving
+// Middleware
+app.use(helmet()); // Security headers
+app.use(compression()); // Gzip compression
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'views')));
 app.use('/images', express.static(path.join(__dirname, 'views/images')));
+app.use(bodyParser.json({ limit: '10mb' }));
 
 // Session
 app.use(session({
@@ -25,9 +31,6 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
 }));
-
-// JSON body parser
-app.use(bodyParser.json({ limit: '10mb' }));
 
 // Passport
 app.use(passport.initialize());
@@ -52,7 +55,8 @@ console.log('📁 Available HTML views:', fs.readdirSync(path.join(__dirname, 'v
 
 // API Routes
 app.use('/api/ditat', ditatRoutes);
-app.use('/api/upload', uploadRouter);
+app.use('/api/upload/trucks', uploadTrucks);
+app.use('/api/upload/trailers', uploadTrailers);
 app.use('/api/units', unitsRouter);
 
 // Auth-protected pages
@@ -60,7 +64,6 @@ app.get('/dashboard.html', (req, res) => {
   if (!req.isAuthenticated()) return res.redirect('/login.html');
   res.sendFile(path.join(__dirname, 'views', 'dashboard.html'));
 });
-
 
 app.get('/units.html', (req, res) => {
   if (!req.isAuthenticated()) return res.redirect('/login.html');
@@ -88,6 +91,17 @@ app.get('/logout', (req, res) => {
 app.get('/', (req, res) => {
   if (!req.isAuthenticated()) return res.redirect('/login.html');
   res.redirect('/dashboard.html');
+});
+
+// 404 handler (should come after all routes)
+app.use((req, res) => {
+  res.status(404).sendFile(path.join(__dirname, 'views', '404.html'));
+});
+
+// Error logging middleware
+app.use((err, req, res, next) => {
+  console.error('🔥 Server Error:', err.stack);
+  res.status(500).send('Something went wrong!');
 });
 
 // Server (Updated for Railway)

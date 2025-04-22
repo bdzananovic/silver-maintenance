@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="/js/config.js"></script>
+  <link rel="icon" href="/images/favicon.ico" type="image/x-icon" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Unit List – Silver Maintenance</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <style>
+    body { margin: 0; font-family: 'Segoe UI', sans-serif; background-color: #e5eaee; }
+    header { background-color: #003366; color: white; display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1.5rem; }
+    header img { height: 40px; }
+    nav a { color: white; text-decoration: none; margin-left: 1rem; font-weight: 500; }
+    .container { position: relative; max-width: 1100px; margin: 2rem auto; background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 6px 12px rgba(0,0,0,0.1); }
+    h2 { color: #003366; }
+    .controls { display: flex; gap: 1rem; margin: 1rem 0 2rem; flex-wrap: wrap; }
+    input[type="text"] { flex-grow: 0.5; min-width: 150px; }
+    input, select { padding: 0.5rem; font-size: 1rem; border-radius: 6px; border: 1px solid #ccc; }
+    #dropzone { padding: 1rem; border: 2px dashed #ccc; border-radius: 8px; text-align: center; background: #f9f9f9; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { text-align: left; padding: 0.75rem; border-bottom: 1px solid #ddd; }
+    th { background-color: #f3f3f3; }
+    table thead th { position: sticky; top: 0; background-color: #f3f3f3; z-index: 1; }
+    .unit-switch { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+    .unit-switch button { padding: 0.5rem 1rem; border: none; border-radius: 6px; background-color: #ccc; color: #003366; cursor: pointer; }
+    .unit-switch button.active { background-color: #003366; color: white; }
+    .status-dot { width: 16px; height: 16px; border-radius: 50%; display: inline-block; }
+    .dot-green { background-color: green; }
+    .dot-yellow { background-color: gold; }
+    .dot-red { background-color: red; }
+    #dotSummary { position: absolute; top: 2rem; right: 2rem; display: flex; gap: 10px; }
+    #dotSummary div { display: flex; align-items: center; gap: 5px; font-weight: bold; }
+  </style>
+</head>
+<body>
+<header>
+  <img src="/images/logo.png" alt="Silver Logo" />
+  <nav>
+    <a href="/dashboard.html">Dashboard</a>
+    <a href="/units.html">Units</a>
+    <a href="/schedules.html">Schedules</a>
+    <a href="/logout">Logout</a>
+  </nav>
+</header>
+
+<div class="container">
+  <h2 id="title">Unit List</h2>
+  <div id="dotSummary">
+    <div><span class="status-dot dot-red"></span> <span id="redCount">0</span></div>
+    <div><span class="status-dot dot-yellow"></span> <span id="yellowCount">0</span></div>
+    <div><span class="status-dot dot-green"></span> <span id="greenCount">0</span></div>
+  </div>
+
+  <div class="unit-switch">
+    <button id="truckBtn" class="active">Trucks</button>
+    <button id="trailerBtn">Trailers</button>
+  </div>
+  <p id="unitCounts" style="margin: 0 0 1.5rem; font-weight: bold; color: #003366;">Active: 0 | Inactive: 0</p>
+
+  <div class="controls">
+    <input type="text" id="search" placeholder="Search TruckId, VIN, Company...">
+    <select id="statusFilter">
+      <option value="active" selected>Active</option>
+      <option value="inactive">Inactive</option>
+      <option value="all">All</option>
+    </select>
+  </div>
+
+  <div id="dropzone">📂 Drag and drop CSV file here or click to upload
+    <input type="file" id="csvUpload" accept=".csv" style="display:none;" />
+  </div>
+
+  <table id="unitTable">
+    <thead>
+      <tr>
+        <th id="idHeader">Truck ID</th>
+        <th id="typeHeader" style="display: none;">Trailer Type</th>
+        <th>Status</th>
+        <th>Year</th>
+        <th>Model</th>
+        <th>Owned By</th>
+        <th>Driver Type</th>
+        <th>DOT Due in</th>
+        <th>Maintenance</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+</div>
+
+<script>
+  // Your JavaScript logic will be assumed here
+</script>
+</body>
+</html>

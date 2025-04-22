@@ -13,8 +13,10 @@ router.get('/', (req, res) => {
     }
 
     try {
-      const units = JSON.parse(data);
-      res.json(units);
+      const parsed = JSON.parse(data);
+      const trucks = Array.isArray(parsed.trucks) ? parsed.trucks : [];
+      const trailers = Array.isArray(parsed.trailers) ? parsed.trailers : [];
+      res.json({ trucks, trailers });
     } catch (parseErr) {
       console.error('Error parsing unit JSON:', parseErr);
       res.status(500).json({ error: 'Failed to parse unit data' });

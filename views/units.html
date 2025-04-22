@@ -189,16 +189,17 @@
     let trucks = [], trailers = [];
     let showingTrucks = true;
     let currentSort = { key: null, ascending: true };
-// Load saved unit data from server
 window.addEventListener('DOMContentLoaded', () => {
-  fetch(`${API_BASE}/api/units`)
-    .then(res => res.json())
-    .then(data => {
-      trucks = (data.trucks || []).map(row => ({ ...row, source: 'truck' }));
-      trailers = (data.trailers || []).map(row => ({ ...row, source: 'trailer' }));
-      renderTable(showingTrucks ? trucks : trailers);
-    })
-    .catch(err => console.error('❌ Error loading saved units:', err));
+  Promise.all([
+    fetch('/api/units/trucks').then(res => res.json()),
+    fetch('/api/units/trailers').then(res => res.json())
+  ])
+  .then(([trucksData, trailersData]) => {
+    trucks = (trucksData || []).map(row => ({ ...row, source: 'truck' }));
+    trailers = (trailersData || []).map(row => ({ ...row, source: 'trailer' }));
+    renderTable(showingTrucks ? trucks : trailers);
+  })
+  .catch(err => console.error('❌ Error loading saved units:', err));
 });
 
 
@@ -353,24 +354,44 @@ window.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    fetch(`${API_BASE}/api/upload`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ trucks: truckRows, trailers: trailerRows })
-    })
+    if (truckRows.length) {
+      fetch('/api/upload/trucks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trucks: truckRows })
+      })
       .then(res => res.json())
       .then(result => {
-        console.log('✅ Uploaded parsed data to server', result);
+        console.log('✅ Trucks uploaded:', result);
         trucks = truckRows;
-        trailers = trailerRows;
-        renderTable(showingTrucks ? trucks : trailers);
+        if (showingTrucks) renderTable(trucks);
       })
       .catch(err => {
-        console.error('❌ Failed to upload data:', err);
+        console.error('❌ Failed to upload trucks:', err);
       });
+    }
+
+    if (trailerRows.length) {
+      fetch('/api/upload/trailers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trailers: trailerRows })
+      })
+      .then(res => res.json())
+      .then(result => {
+        console.log('✅ Trailers uploaded:', result);
+        trailers = trailerRows;
+        if (!showingTrucks) renderTable(trailers);
+      })
+      .catch(err => {
+        console.error('❌ Failed to upload trailers:', err);
+      });
+    }
   };
+
   reader.readAsText(file);
 };
+
 
 
 
