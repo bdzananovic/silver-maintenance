@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
-const RedisStore = require('connect-redis').default; // ✅ Updated to use modern syntax
+const RedisStore = require('connect-redis')(session); // ✅ Stable usage across versions
 const Redis = require('ioredis');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
@@ -41,11 +41,9 @@ app.use(bodyParser.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/images', express.static(path.join(__dirname, 'public/images')));
 
-// Use Redis for Session Storage (with updated RedisStore syntax)
-const store = new RedisStore({ client: redisClient });
-
+// Use Redis for Session Storage
 app.use(session({
-  store,
+  store: new RedisStore({ client: redisClient }),
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
