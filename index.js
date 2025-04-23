@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
-const RedisStore = require('connect-redis')(session);
+const RedisStore = require('connect-redis').default; // ✅ Updated to use modern syntax
 const Redis = require('ioredis');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
@@ -17,7 +17,7 @@ const app = express();
 const redisClient = new Redis({
   host: process.env.REDIS_HOST || '127.0.0.1',
   port: process.env.REDIS_PORT || 6379,
-  password: process.env.REDIS_PASSWORD || '', // Optional, only if Redis requires authentication
+  password: process.env.REDIS_PASSWORD || '',
 });
 
 // Import Routers
@@ -35,22 +35,24 @@ console.log('🧪 Router Exports:', {
 });
 
 // Apply Middleware
-app.use(helmet()); // Adds security headers
-app.use(compression()); // Compress responses to improve performance
-app.use(bodyParser.json({ limit: '10mb' })); // Parse JSON body with a size limit
+app.use(helmet());
+app.use(compression());
+app.use(bodyParser.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/images', express.static(path.join(__dirname, 'public/images'))); // Serve images from public
+app.use('/images', express.static(path.join(__dirname, 'public/images')));
 
-// Use Redis for Session Storage
+// Use Redis for Session Storage (with updated RedisStore syntax)
+const store = new RedisStore({ client: redisClient });
+
 app.use(session({
-  store: new RedisStore({ client: redisClient }),
-  secret: process.env.SESSION_SECRET, // Secure your session with a secret from .env
-  resave: false, // Avoid resaving unchanged sessions
-  saveUninitialized: false, // Don't save uninitialized sessions to improve performance
+  store,
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
-    httpOnly: true, // Prevent client-side scripts from accessing the cookie
-    maxAge: 24 * 60 * 60 * 1000, // 1 day
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000,
   },
 }));
 
@@ -59,11 +61,10 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 passport.use(new GoogleStrategy({
-  clientID: process.env.GOOGLE_CLIENT_ID, // Google OAuth Client ID
-  clientSecret: process.env.GOOGLE_CLIENT_SECRET, // Google OAuth Client Secret
-  callbackURL: process.env.GOOGLE_CALLBACK_URL || "http://localhost:3000/auth/google/callback", // Callback URL
+  clientID: process.env.GOOGLE_CLIENT_ID,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  callbackURL: process.env.GOOGLE_CALLBACK_URL || "http://localhost:3000/auth/google/callback",
 }, (accessToken, refreshToken, profile, done) => {
-  // Restrict access to company email domain
   if (profile._json.hd !== "silvertruckingllc.com") {
     return done(null, false, { message: "Not a company email" });
   }
@@ -73,7 +74,7 @@ passport.use(new GoogleStrategy({
 passport.serializeUser((user, done) => done(null, user));
 passport.deserializeUser((user, done) => done(null, user));
 
-// Debug: Log available views for troubleshooting
+// Debug: Log available views
 console.log('📁 Available HTML Views:', fs.readdirSync(path.join(__dirname, 'views')));
 
 // API Routes
@@ -91,7 +92,6 @@ const protectedRoutes = [
 
 protectedRoutes.forEach(route => {
   app.get(route.path, (req, res) => {
-    // Redirect to login if the user is not authenticated
     if (!req.isAuthenticated()) return res.redirect('/login.html');
     res.sendFile(path.join(__dirname, 'views', route.view));
   });
@@ -125,12 +125,12 @@ app.use((req, res) => {
 
 // Global Error Handler
 app.use((err, req, res, next) => {
-  console.error('🔥 Server Error:', err.stack); // Log the error stack for debugging
-  res.status(500).send('Something went wrong!'); // Send a generic error message to the client
+  console.error('🔥 Server Error:', err.stack);
+  res.status(500).send('Something went wrong!');
 });
 
 // Start Server
-const PORT = process.env.PORT || 3000; // Use the PORT from .env or default to 3000
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`✅ App is running on http://localhost:${PORT}`);
 });
