@@ -11,41 +11,42 @@ const compression = require('compression');
 
 const app = express();
 
-// Routers
+// Import Routers
 const ditatRoutes = require('./routes/ditat');
-const uploadTrucksRouter = require('./routes/uploadTrucks');
-const uploadTrailersRouter = require('./routes/uploadTrailers');
+const uploadTrucksRouter = require('./routes/upload-trucks');
+const uploadTrailersRouter = require('./routes/upload-trailers');
 const unitsRouter = require('./routes/units');
 
-// Debug: check exports
-console.log('🧪 typeof ditatRoutes:', typeof ditatRoutes);
-console.log('🧪 typeof uploadTrucksRouter:', typeof uploadTrucksRouter);
-console.log('🧪 typeof uploadTrailersRouter:', typeof uploadTrailersRouter);
-console.log('🧪 typeof unitsRouter:', typeof unitsRouter);
+// Debug: Log router exports
+console.log('🧪 Router Exports:', {
+  ditatRoutes: typeof ditatRoutes,
+  uploadTrucksRouter: typeof uploadTrucksRouter,
+  uploadTrailersRouter: typeof uploadTrailersRouter,
+  unitsRouter: typeof unitsRouter,
+});
 
-// Middleware
+// Apply Middleware
 app.use(helmet());
 app.use(compression());
-app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.static(path.join(__dirname, 'views')));
-app.use('/images', express.static(path.join(__dirname, 'views/images')));
 app.use(bodyParser.json({ limit: '10mb' }));
+app.use(express.static(path.join(__dirname, 'public')));
+app.use('/images', express.static(path.join(__dirname, 'views/images')));
 
-// Session
+// Session Configuration
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
 }));
 
-// Passport
+// Passport Configuration
 app.use(passport.initialize());
 app.use(passport.session());
 
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: "https://silver-maintenance-production.up.railway.app/auth/google/callback"
+  callbackURL: "https://silver-maintenance-production.up.railway.app/auth/google/callback",
 }, (accessToken, refreshToken, profile, done) => {
   if (profile._json.hd !== "silvertruckingllc.com") {
     return done(null, false, { message: "Not a company email" });
@@ -56,8 +57,8 @@ passport.use(new GoogleStrategy({
 passport.serializeUser((user, done) => done(null, user));
 passport.deserializeUser((user, done) => done(null, user));
 
-// Log views for debug
-console.log('📁 Available HTML views:', fs.readdirSync(path.join(__dirname, 'views')));
+// Debug: Log available views
+console.log('📁 Available HTML Views:', fs.readdirSync(path.join(__dirname, 'views')));
 
 // API Routes
 app.use('/api/ditat', ditatRoutes);
@@ -65,40 +66,36 @@ app.use('/api/upload/trucks', uploadTrucksRouter);
 app.use('/api/upload/trailers', uploadTrailersRouter);
 app.use('/api/units', unitsRouter);
 
-// Protected Routes
-app.get('/dashboard.html', (req, res) => {
-  if (!req.isAuthenticated()) return res.redirect('/login.html');
-  res.sendFile(path.join(__dirname, 'views', 'dashboard.html'));
-});
+// Protected HTML Routes
+const protectedRoutes = [
+  { path: '/dashboard.html', view: 'dashboard.html' },
+  { path: '/units.html', view: 'units.html' },
+  { path: '/schedules.html', view: 'schedules.html' },
+];
 
-app.get('/units.html', (req, res) => {
-  if (!req.isAuthenticated()) return res.redirect('/login.html');
-  res.sendFile(path.join(__dirname, 'views', 'units.html'));
-});
-
-app.get('/schedules.html', (req, res) => {
-  if (!req.isAuthenticated()) return res.redirect('/login.html');
-  res.sendFile(path.join(__dirname, 'views', 'schedules.html'));
+protectedRoutes.forEach(route => {
+  app.get(route.path, (req, res) => {
+    if (!req.isAuthenticated()) return res.redirect('/login.html');
+    res.sendFile(path.join(__dirname, 'views', route.view));
+  });
 });
 
 // OAuth Routes
-app.get('/auth/google',
-  passport.authenticate('google', { scope: ['profile', 'email'] })
-);
+app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
 app.get('/auth/google/callback',
   passport.authenticate('google', { failureRedirect: '/login.html' }),
   (req, res) => res.redirect('/dashboard.html')
 );
 
-// Logout
+// Logout Route
 app.get('/logout', (req, res) => {
   req.logout(() => {
     res.redirect('/logout.html');
   });
 });
 
-// Root
+// Root Route
 app.get('/', (req, res) => {
   if (!req.isAuthenticated()) return res.redirect('/login.html');
   res.redirect('/dashboard.html');
@@ -115,7 +112,7 @@ app.use((err, req, res, next) => {
   res.status(500).send('Something went wrong!');
 });
 
-// Server Listen
+// Start Server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`✅ App is running on http://localhost:${PORT}`);
