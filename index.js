@@ -1,6 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
+const RedisStore = require('connect-redis')(session);
+const Redis = require('ioredis');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const path = require('path');
@@ -10,6 +12,13 @@ const helmet = require('helmet');
 const compression = require('compression');
 
 const app = express();
+
+// Initialize Redis Client
+const redisClient = new Redis({
+  host: process.env.REDIS_HOST || '127.0.0.1',
+  port: process.env.REDIS_PORT || 6379,
+  password: process.env.REDIS_PASSWORD || '', // Optional, only if Redis requires authentication
+});
 
 // Import Routers
 const ditatRoutes = require('./routes/ditat');
@@ -30,13 +39,19 @@ app.use(helmet()); // Adds security headers
 app.use(compression()); // Compress responses to improve performance
 app.use(bodyParser.json({ limit: '10mb' })); // Parse JSON body with a size limit
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/images', express.static(path.join(__dirname, 'views/images')));
+app.use('/images', express.static(path.join(__dirname, 'public/images'))); // Serve images from public
 
-// Session Configuration
+// Use Redis for Session Storage
 app.use(session({
+  store: new RedisStore({ client: redisClient }),
   secret: process.env.SESSION_SECRET, // Secure your session with a secret from .env
   resave: false, // Avoid resaving unchanged sessions
   saveUninitialized: false, // Don't save uninitialized sessions to improve performance
+  cookie: {
+    secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
+    httpOnly: true, // Prevent client-side scripts from accessing the cookie
+    maxAge: 24 * 60 * 60 * 1000, // 1 day
+  },
 }));
 
 // Passport Configuration
@@ -46,7 +61,7 @@ app.use(passport.session());
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID, // Google OAuth Client ID
   clientSecret: process.env.GOOGLE_CLIENT_SECRET, // Google OAuth Client Secret
-  callbackURL: "https://silver-maintenance-production.up.railway.app/auth/google/callback", // Callback URL
+  callbackURL: process.env.GOOGLE_CALLBACK_URL || "http://localhost:3000/auth/google/callback", // Callback URL
 }, (accessToken, refreshToken, profile, done) => {
   // Restrict access to company email domain
   if (profile._json.hd !== "silvertruckingllc.com") {
