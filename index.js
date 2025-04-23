@@ -17,7 +17,7 @@ const uploadTrucksRouter = require('./routes/upload-trucks');
 const uploadTrailersRouter = require('./routes/upload-trailers');
 const unitsRouter = require('./routes/units');
 
-// Debug: Log router exports
+// Debug: Log router exports for validation
 console.log('🧪 Router Exports:', {
   ditatRoutes: typeof ditatRoutes,
   uploadTrucksRouter: typeof uploadTrucksRouter,
@@ -26,17 +26,17 @@ console.log('🧪 Router Exports:', {
 });
 
 // Apply Middleware
-app.use(helmet());
-app.use(compression());
-app.use(bodyParser.json({ limit: '10mb' }));
+app.use(helmet()); // Adds security headers
+app.use(compression()); // Compress responses to improve performance
+app.use(bodyParser.json({ limit: '10mb' })); // Parse JSON body with a size limit
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/images', express.static(path.join(__dirname, 'views/images')));
 
 // Session Configuration
 app.use(session({
-  secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
+  secret: process.env.SESSION_SECRET, // Secure your session with a secret from .env
+  resave: false, // Avoid resaving unchanged sessions
+  saveUninitialized: false, // Don't save uninitialized sessions to improve performance
 }));
 
 // Passport Configuration
@@ -44,10 +44,11 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 passport.use(new GoogleStrategy({
-  clientID: process.env.GOOGLE_CLIENT_ID,
-  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: "https://silver-maintenance-production.up.railway.app/auth/google/callback",
+  clientID: process.env.GOOGLE_CLIENT_ID, // Google OAuth Client ID
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET, // Google OAuth Client Secret
+  callbackURL: "https://silver-maintenance-production.up.railway.app/auth/google/callback", // Callback URL
 }, (accessToken, refreshToken, profile, done) => {
+  // Restrict access to company email domain
   if (profile._json.hd !== "silvertruckingllc.com") {
     return done(null, false, { message: "Not a company email" });
   }
@@ -57,7 +58,7 @@ passport.use(new GoogleStrategy({
 passport.serializeUser((user, done) => done(null, user));
 passport.deserializeUser((user, done) => done(null, user));
 
-// Debug: Log available views
+// Debug: Log available views for troubleshooting
 console.log('📁 Available HTML Views:', fs.readdirSync(path.join(__dirname, 'views')));
 
 // API Routes
@@ -75,6 +76,7 @@ const protectedRoutes = [
 
 protectedRoutes.forEach(route => {
   app.get(route.path, (req, res) => {
+    // Redirect to login if the user is not authenticated
     if (!req.isAuthenticated()) return res.redirect('/login.html');
     res.sendFile(path.join(__dirname, 'views', route.view));
   });
@@ -108,12 +110,12 @@ app.use((req, res) => {
 
 // Global Error Handler
 app.use((err, req, res, next) => {
-  console.error('🔥 Server Error:', err.stack);
-  res.status(500).send('Something went wrong!');
+  console.error('🔥 Server Error:', err.stack); // Log the error stack for debugging
+  res.status(500).send('Something went wrong!'); // Send a generic error message to the client
 });
 
 // Start Server
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000; // Use the PORT from .env or default to 3000
 app.listen(PORT, () => {
   console.log(`✅ App is running on http://localhost:${PORT}`);
 });
