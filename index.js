@@ -1,8 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
-const RedisStore = require('connect-redis')(session); // ✅ Stable usage across versions
-const Redis = require('ioredis');
+const { createClient } = require('redis'); // ✅ FIXED: Use redis, not ioredis
+const RedisStore = require('connect-redis').default;
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const path = require('path');
@@ -13,12 +13,12 @@ const compression = require('compression');
 
 const app = express();
 
-// Initialize Redis Client
-const redisClient = new Redis({
-  host: process.env.REDIS_HOST || '127.0.0.1',
-  port: process.env.REDIS_PORT || 6379,
-  password: process.env.REDIS_PASSWORD || '',
+// ✅ Initialize Redis Client (correct way)
+const redisClient = createClient({
+  url: process.env.REDIS_URL, // You should define REDIS_URL in Railway vars
+  legacyMode: true
 });
+redisClient.connect().catch(console.error);
 
 // Import Routers
 const ditatRoutes = require('./routes/ditat');
@@ -26,7 +26,7 @@ const uploadTrucksRouter = require('./routes/upload-trucks');
 const uploadTrailersRouter = require('./routes/upload-trailers');
 const unitsRouter = require('./routes/units');
 
-// Debug: Log router exports for validation
+// Debug: Log router exports
 console.log('🧪 Router Exports:', {
   ditatRoutes: typeof ditatRoutes,
   uploadTrucksRouter: typeof uploadTrucksRouter,
@@ -41,16 +41,16 @@ app.use(bodyParser.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/images', express.static(path.join(__dirname, 'public/images')));
 
-// Use Redis for Session Storage
+// ✅ Use Redis for Session Storage (fixed)
 app.use(session({
   store: new RedisStore({ client: redisClient }),
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
+    secure: process.env.NODE_ENV === 'production', // true only if HTTPS
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000,
+    maxAge: 24 * 60 * 60 * 1000, // 1 day
   },
 }));
 
